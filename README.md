@@ -1,41 +1,50 @@
-# 🕹️ 小小游戏厅
+# 🕹️ Leon's Arcade
 
-给儿子做的两款**零广告、零内购、离线可玩**的手机游戏（HTML5 PWA）。
+Two ad-free, purchase-free, offline-capable mobile games built as a 7th-birthday gift for Leon.
+给 Leon 的两款无广告、无内购、可离线的手机游戏。
 
-| 游戏 | 目录 | 玩法 |
+**English by default, with a one-tap 中文 toggle on every screen.**
+
+| Game | Folder | Play |
 |---|---|---|
-| 🍦 圈地大冒险 | `paper-io/` | 圈地吞并：出圈拉轨迹，绕回领地占地盘；轨迹被碰即死；目标 100% |
-| 🐍 蛇蛇星球 | `snake-io/` | 大蛇吃豆：吃豆变长变粗，用身体拦截别的蛇，登顶排行榜 |
+| 🍦 **Popsicle Land** (圈地大冒险) | `paper-io/` | Grab land: leave your base to draw a trail, loop back to claim everything inside. Cut rivals' trails. Goal: 100%. |
+| 🐍 **Noodle Stars** (蛇蛇星球) | `snake-io/` | Eat glowing dots to grow. Block other snakes so they crash into you. Climb to #1. |
 
-`index.html` 是选择门户。两款游戏完全自包含（无框架、无外部依赖、无任何网络请求）。
+`index.html` is the arcade portal. Each game is fully self-contained (no frameworks, no dependencies, no network calls).
 
-## 在电脑上试玩
+## 🌐 Live
+
+**https://nicsonsnz.github.io/kids-arcade/**
+
+Install on iPhone: open in **Safari** → Share ⬆️ → **Add to Home Screen**. Full-screen, no browser bar, **works offline**.
+
+## 🎁 Progression (all free — the stuff Paper.io 2 hides behind ads)
+
+- **Coins** earned every match (big satisfying count-up).
+- **Chests** — one after every match, plus a free daily gift. Shake → burst → reveal.
+- **20 collectible skins per game** across Common / Rare / Epic / Legendary, shown as mystery silhouettes until unlocked. Unlock via chests or buy directly with coins.
+- **Pity system** — a guaranteed brand-new skin at least every 5th chest, plus ramping odds. A kid never opens a run of duds; duplicates convert to bonus coins ("extra coins!", never "already owned").
+- **Rank road** — 🌱 Rookie → 🥉 Bronze → 🥈 Silver → 🥇 Gold → 💎 Diamond → 👑 Master → 🌈 Legend, with a rank-up ceremony.
+- **Kill streaks** — DOUBLE KILL / TRIPLE KILL / UNSTOPPABLE with bonus coins.
+- **Results flow** — score → coin count-up → rank bar → chest reveal → Play Again.
+- **🎂 Birthday mode** — on **1 August**, the game greets Leon with confetti, a birthday song, "Happy 7th Birthday, Leon!", and gifts an exclusive 🎂 birthday skin (obtainable no other way). Configured in each game's `js/meta/meta-config.js` → `BIRTHDAY`.
+
+### Kid-safety rules (enforced in code)
+Coins/ranks/collection **only ever go up** — losing costs nothing. No energy timers, no lockouts, no login streaks that can break, no FOMO, no purchases, no ads. Skins are **cosmetic only**. Difficulty quietly eases after a couple of losses (never announced). Icon-first UI with minimal text.
+
+## 🛠 Development
 
 ```bash
 python3 -m http.server 8347 --directory "/Users/nick/Documents/Nick_Projects/Game"
 ```
 
-浏览器打开 http://localhost:8347 。桌面操作：WASD/方向键或按住鼠标拖动转向；蛇蛇加速=空格或按住左键。
+Then open http://localhost:8347. Desktop controls: WASD/arrows or hold-drag the mouse to steer; Space / hold left-click to boost (Noodle Stars).
 
-## 🌐 正式地址（已部署 GitHub Pages）
+Both games expose `window.__game` for scripted testing (drive `game.step(1/60)` headlessly).
 
-**https://nicsonsnz.github.io/kids-arcade/**
+**Deploying:** edit → **bump the `CACHE` version in that game's `sw.js`** (currently `quanland-v4` / `noodle-v4`) → `git push`. GitHub Pages rebuilds automatically; the phone picks it up next launch.
 
-装到 iPhone：手机 Safari 打开上面网址 → 进想玩的游戏 → 点分享 ⬆️ →
-「添加到主屏幕」→ 桌面出现游戏图标，点开即全屏游戏，**断网也能玩**。
-（两个游戏分别添加，各有各的图标；也可以只把门户页加到主屏幕。）
-
-**更新流程**：改完代码 → bump 对应 `sw.js` 的 `CACHE` 版本号 → `git push`（仓库 `nicsonsnz/kids-arcade`，Pages 自动重建）。手机上开关一次 App 后拿到新版本。
-
-## 技术要点
-- 纯 vanilla JS ES modules，Canvas 2D，60Hz 固定步长 + 渲染插值，DPR 上限 2
-- 音效全部 WebAudio 合成（无音频文件）；iOS 首触解锁 + 中断恢复
-- AI 假多人：每个 bot 有性格向量（激进/谨慎/技术/贪婪），状态机驱动，会犯错、会互杀、会偷地
-- 圈地算法：400×400 网格 + 外侧洪水填充反选；marching squares + Chaikin 平滑渲染领地
-- 蛇蛇：路径采样身体、空间哈希碰撞、预烘焙光晕（全程无 shadowBlur）
-- 皮肤按最高纪录解锁（纯成就感，无任何付费）；最高分存 localStorage
-- 更新版本时记得 bump `sw.js` 里的 `CACHE` 版本号，旧缓存会自动清除
-
-## 目录
-- `docs/` — 设计规格书（PLATFORM / SPEC-paper-io / SPEC-snake-io / DESIGN-FOUNDATION）
-- `_legacy_anna/` — 上一版的归档（确认不要后可整个删除）
+## 📁 Layout
+- `docs/` — design specs (PLATFORM, SPEC-paper-io, SPEC-snake-io, SPEC-meta, DESIGN-FOUNDATION)
+- `paper-io/` `snake-io/` — the two games (each with `js/meta/` progression + `js/i18n.js` localization)
+- `_legacy_anna/` — archived first draft (safe to delete)

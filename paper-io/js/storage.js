@@ -21,13 +21,16 @@ function write(key, value) {
 }
 
 // 皮肤定义：id -> 解锁所需最高百分比
+// NOTE: legacy/unused — the live catalog is SKIN_CATALOG in js/meta/meta-config.js and
+// display names are resolved via I18N. Kept only for backward compatibility; names are
+// English to avoid any stray hardcoded Chinese if ever referenced.
 export const SKINS = [
-  { id: 'icecream', emoji: '🍦', name: '冰棒', unlockAt: 0 },
-  { id: 'duck', emoji: '🦆', name: '果冻鸭', unlockAt: 10 },
-  { id: 'donut', emoji: '🍩', name: '甜甜圈', unlockAt: 20 },
-  { id: 'cat', emoji: '🐱', name: '喵喵', unlockAt: 35 },
-  { id: 'car', emoji: '🚗', name: '小赛车', unlockAt: 50 },
-  { id: 'alien', emoji: '👾', name: '外星人', unlockAt: 100 },
+  { id: 'icecream', emoji: '🍦', name: 'Popsicle', unlockAt: 0 },
+  { id: 'duck', emoji: '🦆', name: 'Jelly Duck', unlockAt: 10 },
+  { id: 'donut', emoji: '🍩', name: 'Donut', unlockAt: 20 },
+  { id: 'cat', emoji: '🐱', name: 'Meow', unlockAt: 35 },
+  { id: 'car', emoji: '🚗', name: 'Racer', unlockAt: 50 },
+  { id: 'alien', emoji: '👾', name: 'Alien', unlockAt: 100 },
 ];
 
 export const Storage = {

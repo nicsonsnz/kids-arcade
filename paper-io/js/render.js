@@ -378,7 +378,7 @@ export class Renderer {
     ctx.restore();
 
     // 名字标签
-    const label = e.isPlayer ? ('你 ' + e.skinName) : e.name;
+    const label = e.isPlayer ? (e.name + ' ' + e.skinName) : e.name;
     ctx.font = '700 11px -apple-system, sans-serif';
     const tw = ctx.measureText(label).width;
     const padX = 6, lh = 16;

@@ -1,10 +1,12 @@
 // sw.js — cache-first service worker（缓存名含版本号）
-const CACHE = 'noodle-v2';
+const CACHE = 'noodle-v4';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/style.css',
+  './css/meta.css',
+  './js/i18n.js',
   './js/main.js',
   './js/game.js',
   './js/bots.js',
@@ -13,6 +15,10 @@ const ASSETS = [
   './js/audio.js',
   './js/juice.js',
   './js/storage.js',
+  './js/meta/meta.js',
+  './js/meta/meta-config.js',
+  './js/meta/meta-ui.js',
+  './js/meta/meta-fx.js',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

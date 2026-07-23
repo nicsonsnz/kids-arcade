@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "蛇蛇星球",
-  "short_name": "蛇蛇星球",
+  "name": "Noodle Stars",
+  "short_name": "Noodle Stars",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

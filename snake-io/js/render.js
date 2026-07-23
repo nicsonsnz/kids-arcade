@@ -6,6 +6,25 @@ function lighten(rgb, f) {
   return [Math.min(255, rgb[0] + (255 - rgb[0]) * f), Math.min(255, rgb[1] + (255 - rgb[1]) * f), Math.min(255, rgb[2] + (255 - rgb[2]) * f)];
 }
 function rgbStr(a) { return 'rgb(' + (a[0] | 0) + ',' + (a[1] | 0) + ',' + (a[2] | 0) + ')'; }
+function hexToRgb(hex) {
+  let h = String(hex || '#888888').replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const n = parseInt(h, 16);
+  if (!isFinite(n)) return [136, 136, 136];
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbLerp(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+function rgbToHue(rgb) {
+  const r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (d === 0) return 0;
+  let h;
+  if (mx === r) h = ((g - b) / d) % 6;
+  else if (mx === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60; if (h < 0) h += 360;
+  return h;
+}
 
 export const Renderer = {
   canvas: null, ctx: null, w: 0, h: 0, dpr: 1,
@@ -14,8 +33,9 @@ export const Renderer = {
   hexTile: null, starFar: null, starNear: null,
   boundaryGrad: null,
   mmCanvas: null, mmCtx: null,
-  // 预烘焙颜色查表（热路径零字符串分配）
-  rainbowLUT: null, gradientLUT: null, candyWing: null, boostAura: null,
+  // 预烘焙颜色查表（热路径零字符串分配）——按皮肤索引
+  segLUT: null, skinBase: null, skinHi: null, skinPatLight: null, skinPatDark: null,
+  candyWing: null, boostAura: null,
 
   init(canvas) {
     this.canvas = canvas;
@@ -66,15 +86,35 @@ export const Renderer = {
     g.addColorStop(1, 'rgba(255,40,70,0.05)');
     this.boundaryGrad = g;
 
-    // 逐段皮肤颜色查表：按段索引预生成，运行时只做数组索引（不再每段拼 hsl 字符串）
+    // 逐皮肤颜色预烘焙（数据驱动 base/accent/style）：运行时只做数组索引，热路径零字符串分配。
     const LUTN = 512; // >= 最大段数 420
-    this.rainbowLUT = new Array(LUTN);
-    this.gradientLUT = new Array(LUTN);
-    for (let i = 0; i < LUTN; i++) {
-      this.rainbowLUT[i] = 'hsl(' + ((i * 12) % 360) + ',85%,60%)';
-      const h = 300 + Math.sin(i * 0.15) * 30; // 270–330
-      const l = 55 + Math.sin(i * 0.4) * 8;
-      this.gradientLUT[i] = 'hsl(' + h + ',80%,' + l + '%)';
+    const N = SKINS.length;
+    this.segLUT = new Array(N).fill(null);   // 仅 rainbow/gradient 皮肤有逐段 LUT
+    this.skinBase = new Array(N);
+    this.skinHi = new Array(N);
+    this.skinPatLight = new Array(N);
+    this.skinPatDark = new Array(N);
+    for (let si = 0; si < N; si++) {
+      const sk = SKINS[si];
+      const baseRgb = hexToRgb(sk.base);
+      const accRgb = hexToRgb(sk.accent);
+      this.skinBase[si] = sk.base;
+      this.skinHi[si] = sk.accent;
+      this.skinPatLight[si] = sk.accent;
+      this.skinPatDark[si] = rgbStr(rgbLerp(baseRgb, [0, 0, 0], 0.42));
+      if (sk.style === 'rainbow' || sk.style === 'gradient') {
+        const lut = new Array(LUTN);
+        const baseHue = rgbToHue(baseRgb);
+        for (let i = 0; i < LUTN; i++) {
+          if (sk.style === 'rainbow') {
+            lut[i] = 'hsl(' + (((baseHue + i * 12) % 360 + 360) % 360) + ',85%,60%)';
+          } else {
+            const t = (Math.sin(i * 0.15) + 1) / 2;
+            lut[i] = rgbStr(rgbLerp(baseRgb, accRgb, t));
+          }
+        }
+        this.segLUT[si] = lut;
+      }
     }
     // 星蝶翅膀色（alpha 0.95）与加速外圈光晕色（每皮肤，提亮糖果色，预烘焙）
     this.candyWing = CANDY.map((c) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0.95)');
@@ -315,8 +355,9 @@ export const Renderer = {
     const r = s.r;
     if (maxx + r < view.l || minx - r > view.r || maxy + r < view.t || miny - r > view.b) return;
 
-    const skin = SKINS[s.skin] || SKINS[0];
-    const perSeg = (skin.type === 'rainbow' || skin.type === 'gradient');
+    const si = (s.skin >= 0 && s.skin < SKINS.length) ? s.skin : 0;
+    const skin = SKINS[si];
+    const perSeg = (skin.style === 'rainbow' || skin.style === 'gradient');
 
     // 加速外光
     if (s.boosting) {
@@ -341,7 +382,7 @@ export const Renderer = {
         // 段剔除
         if ((a.x < view.l - r && b.x < view.l - r) || (a.x > view.r + r && b.x > view.r + r) ||
           (a.y < view.t - r && b.y < view.t - r) || (a.y > view.b + r && b.y > view.b + r)) continue;
-        const lut = skin.type === 'rainbow' ? this.rainbowLUT : this.gradientLUT;
+        const lut = this.segLUT[si];
         ctx.strokeStyle = lut[j < lut.length ? j : lut.length - 1];
         ctx.lineWidth = 2 * r;
         ctx.beginPath();
@@ -354,7 +395,7 @@ export const Renderer = {
       ctx.beginPath();
       ctx.moveTo(seg[0].x, seg[0].y);
       for (let j = 1; j < seg.length; j++) ctx.lineTo(seg[j].x, seg[j].y);
-      ctx.strokeStyle = this._baseColor(skin);
+      ctx.strokeStyle = this.skinBase[si];
       ctx.lineWidth = 2 * r;
       ctx.stroke();
       // 高光（上移 2u；路径已烘焙进上一次描边，需重建一遍以应用偏移）
@@ -363,60 +404,36 @@ export const Renderer = {
       ctx.beginPath();
       ctx.moveTo(seg[0].x, seg[0].y);
       for (let j = 1; j < seg.length; j++) ctx.lineTo(seg[j].x, seg[j].y);
-      ctx.strokeStyle = this._hiColor(skin);
+      ctx.strokeStyle = this.skinHi[si];
       ctx.lineWidth = 0.55 * r;
       ctx.stroke();
       ctx.restore();
       // 花纹圆斑（每 4 段）
-      this._drawPattern(ctx, skin, seg, r, view);
+      this._drawPattern(ctx, seg, r, view, this.skinPatLight[si], this.skinPatDark[si]);
     }
 
     this._drawHead(ctx, game, s, alpha, kingId);
   },
 
-  _drawPattern(ctx, skin, seg, r, view) {
-    if (skin.type === 'gradient' || skin.type === 'rainbow') return;
-    let col;
-    if (skin.type === 'rings') col = ['#ffe08a', '#e07a1f'];
-    else if (skin.type === 'ice') col = ['#eaf6ff', '#2f6fc0'];
-    else if (skin.type === 'stripes') col = ['#e6ff9c', '#4f7a12'];
-    else col = ['#fff2c0', '#a9761a']; // gold
+  _drawPattern(ctx, seg, r, view, light, dark) {
     for (let j = 2; j < seg.length; j += 4) {
       const p = seg[j];
       if (p.x + r < view.l || p.x - r > view.r || p.y + r < view.t || p.y - r > view.b) continue;
-      ctx.fillStyle = ((j >> 2) & 1) ? col[0] : col[1];
+      ctx.fillStyle = ((j >> 2) & 1) ? light : dark;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r * 0.42, 0, TAU);
       ctx.fill();
     }
   },
 
-  _baseColor(skin) {
-    switch (skin.type) {
-      case 'rings': return '#ff9d2e';
-      case 'ice': return '#3f8fe6';
-      case 'stripes': return '#7fbf1f';
-      case 'gold': return '#e6a91f';
-      default: return skin.accent;
-    }
-  },
-  _hiColor(skin) {
-    switch (skin.type) {
-      case 'rings': return '#ffd36b';
-      case 'ice': return '#cfeaff';
-      case 'stripes': return '#d7f56b';
-      case 'gold': return '#ffe9a0';
-      default: return '#ffffff';
-    }
-  },
   _drawHead(ctx, game, s, alpha, kingId) {
     const hx = lerp(s.px, s.x, alpha), hy = lerp(s.py, s.y, alpha);
     const ang = angLerp(s.pheading, s.heading, alpha);
     const r = s.r * 1.08;
-    const skin = SKINS[s.skin] || SKINS[0];
+    const si = (s.skin >= 0 && s.skin < SKINS.length) ? s.skin : 0;
 
     // 头
-    ctx.fillStyle = this._baseColor(skin);
+    ctx.fillStyle = this.skinBase[si];
     ctx.beginPath();
     ctx.arc(hx, hy, r, 0, TAU);
     ctx.fill();

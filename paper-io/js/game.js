@@ -2,6 +2,11 @@
 import { Audio } from './audio.js';
 import { Juice } from './juice.js';
 import { Bots } from './bots.js';
+import { Meta } from './meta/meta.js';
+import { I18N } from './i18n.js';
+
+// 连杀检测窗口（SPEC §8）：窗口内每杀刷新计时。
+const KILL_STREAK_WINDOW = 3.0; // 秒（逻辑时间）
 
 export const TUNING = {
   worldCells: 400,        // grid 400x400
@@ -34,14 +39,11 @@ const TAU = Math.PI * 2;
 // pastel 色池
 const PASTELS = ['#7ec8ff', '#ff9ec8', '#a6e37b', '#c39bff', '#ffd166',
   '#5fe0c0', '#ff8f6b', '#8bd3ff', '#ffa3e0', '#b8e986', '#f6a5c0', '#7bd1a8'];
-// bot 名字 + emoji 池
-const BOT_IDENTITIES = [
-  ['果冻鸭', '🦆'], ['甜圈猫', '🐱'], ['汽水熊', '🐻'], ['泡泡龙', '🐲'],
-  ['棉花糖', '🐰'], ['布丁狗', '🐶'], ['奶盖鲸', '🐳'], ['波波熊', '🐨'],
-  ['果酱狐', '🦊'], ['蜜瓜猪', '🐷'], ['芒果象', '🐘'], ['草莓兔', '🐇'],
-  ['蓝莓鼠', '🐭'], ['柠檬鸟', '🐦'], ['椰子猴', '🐵'], ['樱桃鹿', '🦌'],
-  ['抹茶蛙', '🐸'], ['焦糖獾', '🦡'], ['蜜桃羊', '🐑'], ['西瓜企鹅', '🐧'],
-  ['荔枝喵', '🐈'], ['蛋挞鸭', '🦉'],
+// bot emoji 池（顺序与 i18n bot 名称数组一一对应；名字按当前语言从 I18N.botName(index) 取）
+const BOT_EMOJIS = [
+  '🦆', '🐱', '🐻', '🐲', '🐰', '🐶', '🐳', '🐨',
+  '🦊', '🐷', '🐘', '🐇', '🐭', '🐦', '🐵', '🦌',
+  '🐸', '🦡', '🐑', '🐧', '🐈', '🦉',
 ];
 
 function clampCell(v) { return v < 0 ? 0 : (v >= N ? N - 1 : v); }
@@ -81,9 +83,12 @@ export class Game {
     this.aliveTime = 0;
 
     this.deaths = [];
+    // 连杀（仅玩家）
+    this._streakCount = 0;
+    this._lastKillTime = -999;
     this.callbacks = {
       onKill: () => {}, onPlayerDeath: () => {}, onVictory: () => {},
-      onCapture: () => {},
+      onCapture: () => {}, onKillStreak: () => {},
     };
   }
 
@@ -96,7 +101,8 @@ export class Game {
       x: 0, y: 0, prevX: 0, prevY: 0,
       angle: 0, prevAngle: 0, targetAngle: 0,
       color: isPlayer ? '#ff8a3d' : PASTELS[0],
-      emoji: '🍦', name: isPlayer ? '你' : 'bot', skinName: '冰棒',
+      emoji: '🍦', name: isPlayer ? 'Leon' : 'bot', skinName: 'Popsicle',
+      _identityIndex: -1,
       inTerritory: true,
       trailActive: false,
       stepCounter: 0,
@@ -126,6 +132,7 @@ export class Game {
     this.lastRampTime = 0; this.lastRampPercent = 0;
     this.reviveUsed = false; this.over = false; this.won = false;
     this.playerKills = 0; this.aliveTime = 0;
+    this._streakCount = 0; this._lastKillTime = -999;
     this.deaths.length = 0;
     for (let i = 0; i < 9; i++) this.entities[i] = null;
     Juice.reset();
@@ -133,9 +140,16 @@ export class Game {
 
   newGame(skin) {
     this.reset();
-    // 玩家
+    // 隐形照顾难度（SPEC §0/§8）：连败越多 bot 越少越温和（绝不提示）。
+    const diff = Meta.getDifficulty();
+    let botCount = TUNING.botCount + (diff.botCountDelta || 0);
+    if (botCount < diff.minBots) botCount = diff.minBots;
+    if (botCount > TUNING.botCount) botCount = TUNING.botCount;
+
+    // 玩家（显示名 Leon；生日当天名字旁加 🎂，SPEC §7）
     const p = this.makeEntity(TUNING.playerId, true);
-    p.emoji = skin.emoji; p.skinName = skin.name; p.name = '你';
+    p.emoji = skin.emoji; p.skinName = I18N.skinName(skin.id);
+    p.name = Meta.playerName() + (Meta.isBirthdayToday() ? ' 🎂' : '');
     p.color = '#ff8a3d';
     const cx = N / 2 + ((Math.random() * 8 - 4) | 0);
     const cy = N / 2 + ((Math.random() * 8 - 4) | 0);
@@ -145,13 +159,17 @@ export class Game {
 
     // bots
     const used = new Set();
-    for (let b = 0; b < TUNING.botCount; b++) {
+    for (let b = 0; b < botCount; b++) {
       const id = 2 + b;
       const e = this.makeEntity(id, false);
       this.assignIdentity(e, used);
       const spot = this.findSpawnSpot();
       this.spawnEntity(e, spot.cx, spot.cy);
       e.ai = Bots.makeBrain();
+      // 隐形激进度衰减
+      if (diff.aggressionMult && diff.aggressionMult !== 1) {
+        e.ai.aggression = Math.max(0, Math.min(0.9, e.ai.aggression * diff.aggressionMult));
+      }
       this.entities[id] = e;
     }
     this.startWallTime = performance.now();
@@ -159,11 +177,12 @@ export class Game {
 
   assignIdentity(e, used) {
     let tries = 0, pick;
-    do { pick = (Math.random() * BOT_IDENTITIES.length) | 0; tries++; }
+    do { pick = (Math.random() * BOT_EMOJIS.length) | 0; tries++; }
     while (used.has(pick) && tries < 40);
     used.add(pick);
-    e.name = BOT_IDENTITIES[pick][0];
-    e.emoji = BOT_IDENTITIES[pick][1];
+    e._identityIndex = pick;
+    e.name = I18N.botName(pick);
+    e.emoji = BOT_EMOJIS[pick];
     e.color = PASTELS[(Math.random() * PASTELS.length) | 0];
   }
 
@@ -440,7 +459,14 @@ export class Game {
         const k = this.entities[killerId];
         if (k) {
           k.kills++;
-          if (k.isPlayer) this.playerKills++;
+          if (k.isPlayer) {
+            this.playerKills++;
+            // 连杀检测（SPEC §8）：3s 窗口内连续击杀升级弹窗，窗口内每杀刷新计时。
+            if (this.time - this._lastKillTime <= KILL_STREAK_WINDOW) this._streakCount++;
+            else this._streakCount = 1;
+            this._lastKillTime = this.time;
+            if (this._streakCount >= 2) this.callbacks.onKillStreak(this._streakCount);
+          }
           this.callbacks.onKill(k, e);
           Audio.kill();
         }
@@ -474,9 +500,7 @@ export class Game {
     for (let id = 2; id <= 8; id++) {
       const o = this.entities[id];
       if (!o || o === e) continue;
-      for (let k = 0; k < BOT_IDENTITIES.length; k++) {
-        if (BOT_IDENTITIES[k][0] === o.name) { used.add(k); break; }
-      }
+      if (o._identityIndex >= 0) used.add(o._identityIndex);
     }
     this.assignIdentity(e, used);
     const spot = this.findSpawnSpot();

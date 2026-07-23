@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b1633">
-<title>小小游戏厅</title>
+<title>Leon's Arcade</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
@@ -13,17 +13,24 @@
     background: radial-gradient(1200px 800px at 50% -10%, #2d2452 0%, #1b1633 55%, #120e24 100%);
     color: #fff; display: flex; flex-direction: column; align-items: center;
     padding: calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 32px);
-    overflow-x: hidden;
+    overflow-x: hidden; -webkit-user-select: none; user-select: none;
   }
   .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
   .stars i { position: absolute; width: 4px; height: 4px; border-radius: 50%;
     background: #cfc6ff; opacity: .7; animation: tw 2.6s ease-in-out infinite; }
   @keyframes tw { 0%,100% { opacity:.15; transform:scale(.7);} 50% { opacity:.85; transform:scale(1);} }
-  h1 { font-size: 34px; font-weight: 900; letter-spacing: 2px; z-index: 1;
+  .lang-toggle {
+    position: fixed; top: calc(env(safe-area-inset-top) + 12px); right: 16px; z-index: 5;
+    min-width: 64px; min-height: 44px; padding: 8px 16px; border: none; border-radius: 999px;
+    background: rgba(255,255,255,.14); color: #fff; font-size: 15px; font-weight: 800;
+    cursor: pointer; backdrop-filter: blur(4px);
+  }
+  .lang-toggle:active { transform: scale(.94); }
+  h1 { font-size: 34px; font-weight: 900; letter-spacing: 1px; z-index: 1; text-align: center;
        text-shadow: 0 4px 0 rgba(0,0,0,.35); animation: bob 3s ease-in-out infinite; }
   @keyframes bob { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-6px);} }
-  .sub { margin-top: 10px; font-size: 14px; color: #b9b0e8; z-index: 1; }
-  .badges { display: flex; gap: 8px; margin-top: 14px; z-index: 1; }
+  .sub { margin-top: 10px; font-size: 14px; color: #b9b0e8; z-index: 1; text-align: center; }
+  .badges { display: flex; gap: 8px; margin-top: 14px; z-index: 1; flex-wrap: wrap; justify-content: center; }
   .badge { font-size: 12px; font-weight: 700; background: rgba(255,255,255,.1);
            border: 1px solid rgba(255,255,255,.18); padding: 5px 12px; border-radius: 999px; }
   .cards { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center;
@@ -48,43 +55,43 @@
   .card .deco { position: absolute; right: -18px; top: -18px; font-size: 84px; opacity: .18;
                 transform: rotate(18deg); pointer-events: none; }
   .tip { margin-top: 34px; font-size: 13px; color: #9d93cf; text-align: center;
-         line-height: 1.8; z-index: 1; max-width: 420px; }
+         line-height: 1.8; z-index: 1; max-width: 440px; }
   .tip b { color: #d8d1ff; }
 </style>
 </head>
 <body>
 <div class="stars" id="stars"></div>
-<h1>🕹️ 小小游戏厅</h1>
-<div class="sub">爸爸出品 · 专属游戏机</div>
+<button class="lang-toggle" id="langToggle">中文</button>
+
+<h1 id="t-title">🕹️ Leon's Arcade</h1>
+<div class="sub" id="t-sub">Made by Dad · just for you</div>
 <div class="badges">
-  <span class="badge">🚫 没有广告</span>
-  <span class="badge">📶 断网能玩</span>
-  <span class="badge">🆓 全部免费</span>
+  <span class="badge" id="t-b1">🚫 No Ads</span>
+  <span class="badge" id="t-b2">📶 Works Offline</span>
+  <span class="badge" id="t-b3">🆓 Always Free</span>
 </div>
 
 <div class="cards">
   <a class="card pop" href="./paper-io/">
     <span class="deco">🍦</span>
-    <img src="./paper-io/icons/icon-192.png" alt="圈地大冒险">
-    <h2>圈地大冒险</h2>
-    <p>开着冰棒小车圈地盘！绕一圈把土地变成你的颜色，切断对手的尾巴，占领整个世界！</p>
-    <span class="go">开始玩 ▶</span>
+    <img src="./paper-io/icons/icon-192.png" alt="Popsicle Land">
+    <h2 id="t-g1-name">Popsicle Land</h2>
+    <p id="t-g1-desc">Drive your popsicle and grab land! Loop around to paint it your colour, cut rivals' tails, and take over the whole world!</p>
+    <span class="go" id="t-g1-play">Play ▶</span>
   </a>
   <a class="card noo" href="./snake-io/">
     <span class="deco">🐍</span>
-    <img src="./snake-io/icons/icon-192.png" alt="蛇蛇星球">
-    <h2>蛇蛇星球</h2>
-    <p>吃光豆变成超级大蛇！用身体拦住别的蛇，把它们变成一地星星糖，登上第一名！</p>
-    <span class="go">开始玩 ▶</span>
+    <img src="./snake-io/icons/icon-192.png" alt="Noodle Stars">
+    <h2 id="t-g2-name">Noodle Stars</h2>
+    <p id="t-g2-desc">Eat glowing dots to grow a giant snake! Block other snakes to pop them into star candy, and climb to #1!</p>
+    <span class="go" id="t-g2-play">Play ▶</span>
   </a>
 </div>
 
-<div class="tip">
-  💡 想变成手机 App：用 Safari 打开游戏，点 <b>分享按钮 ⬆️</b> →
-  <b>「添加到主屏幕」</b>，桌面就会出现游戏图标，全屏没广告！
-</div>
+<div class="tip" id="t-tip">💡 To make it an app: open in Safari, tap the <b>Share button ⬆️</b> → <b>"Add to Home Screen"</b>. An icon appears on the home screen — full-screen, no ads!</div>
 
 <script>
+  // stars
   const s = document.getElementById('stars');
   for (let i = 0; i < 26; i++) {
     const d = document.createElement('i');
@@ -94,6 +101,60 @@
     d.style.transform = 'scale(' + (0.5 + Math.random()).toFixed(2) + ')';
     s.appendChild(d);
   }
+
+  // i18n: default English, toggle to Chinese, persisted
+  const STR = {
+    en: {
+      title: "🕹️ Leon's Arcade", sub: "Made by Dad · just for you",
+      b1: "🚫 No Ads", b2: "📶 Works Offline", b3: "🆓 Always Free",
+      g1name: "Popsicle Land",
+      g1desc: "Drive your popsicle and grab land! Loop around to paint it your colour, cut rivals' tails, and take over the whole world!",
+      g2name: "Noodle Stars",
+      g2desc: "Eat glowing dots to grow a giant snake! Block other snakes to pop them into star candy, and climb to #1!",
+      play: "Play ▶",
+      tip: '💡 To make it an app: open in Safari, tap the <b>Share button ⬆️</b> → <b>"Add to Home Screen"</b>. An icon appears on the home screen — full-screen, no ads!',
+      toggle: "中文",
+    },
+    zh: {
+      title: "🕹️ Leon 的游戏厅", sub: "爸爸出品 · 专属游戏机",
+      b1: "🚫 没有广告", b2: "📶 断网能玩", b3: "🆓 全部免费",
+      g1name: "圈地大冒险",
+      g1desc: "开着冰棒小车圈地盘！绕一圈把土地变成你的颜色，切断对手的尾巴，占领整个世界！",
+      g2name: "蛇蛇星球",
+      g2desc: "吃光豆变成超级大蛇！用身体拦住别的蛇，把它们变成一地星星糖，登上第一名！",
+      play: "开始玩 ▶",
+      tip: '💡 想变成手机 App：用 Safari 打开，点 <b>分享按钮 ⬆️</b> → <b>「添加到主屏幕」</b>，桌面就会出现游戏图标，全屏没广告！',
+      toggle: "EN",
+    },
+  };
+  function getLang() {
+    try { const l = localStorage.getItem('arcade.lang'); if (l === 'en' || l === 'zh') return l; } catch (e) {}
+    return 'en';
+  }
+  function apply(lang) {
+    const t = STR[lang];
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    document.getElementById('t-title').textContent = t.title;
+    document.getElementById('t-sub').textContent = t.sub;
+    document.getElementById('t-b1').textContent = t.b1;
+    document.getElementById('t-b2').textContent = t.b2;
+    document.getElementById('t-b3').textContent = t.b3;
+    document.getElementById('t-g1-name').textContent = t.g1name;
+    document.getElementById('t-g1-desc').textContent = t.g1desc;
+    document.getElementById('t-g2-name').textContent = t.g2name;
+    document.getElementById('t-g2-desc').textContent = t.g2desc;
+    document.getElementById('t-g1-play').textContent = t.play;
+    document.getElementById('t-g2-play').textContent = t.play;
+    document.getElementById('t-tip').innerHTML = t.tip;
+    document.getElementById('langToggle').textContent = t.toggle;
+  }
+  let lang = getLang();
+  apply(lang);
+  document.getElementById('langToggle').addEventListener('click', () => {
+    lang = lang === 'en' ? 'zh' : 'en';
+    try { localStorage.setItem('arcade.lang', lang); } catch (e) {}
+    apply(lang);
+  });
 </script>
 </body>
 </html>

@@ -1,17 +1,18 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="圈地大冒险">
+  <meta name="apple-mobile-web-app-title" content="Popsicle Land">
   <meta name="theme-color" content="#ff8a3d">
   <link rel="apple-touch-icon" href="./icons/icon-180.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <title>圈地大冒险</title>
+  <title>Popsicle Land</title>
   <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/meta.css">
 </head>
 <body>
   <canvas id="game"></canvas>
@@ -21,76 +22,64 @@
     <div id="hud-top">
       <div id="pct-wrap">
         <div id="pct">0.0%</div>
-        <div id="best-small">最高 0.0%</div>
+        <div id="best-small">Best 0.0%</div>
       </div>
     </div>
     <ul id="leaderboard"></ul>
     <canvas id="minimap" width="132" height="132"></canvas>
-    <button id="btn-pause" class="icon-btn" aria-label="暂停">⏸</button>
+    <button id="btn-pause" class="icon-btn" data-i18n-aria="hud.pauseAria" aria-label="Pause">⏸</button>
     <div id="toasts"></div>
   </div>
 
-  <!-- 开始界面 -->
+  <!-- 开始界面 / Start screen -->
   <div id="start-screen" class="overlay">
+    <button id="btn-lang" class="lang-btn" data-i18n="menu.langToggle" data-i18n-aria="menu.langAria" aria-label="Switch language">中文</button>
     <div class="logo">
-      <span class="logo-word">圈地</span><span class="logo-word accent">大冒险</span>
+      <span class="logo-word" data-i18n="logo.part1">Popsicle</span><span class="logo-word accent" data-i18n="logo.part2">Land</span>
     </div>
-    <div class="subtitle">圈住越多地盘越厉害！</div>
-    <div class="best-line">🏆 最高纪录 <b id="best-menu">0.0%</b></div>
-    <div class="skin-title">选择你的小车</div>
+    <div class="subtitle" data-i18n="subtitle">The more land you grab, the cooler you are!</div>
+    <div id="birthday-banner" class="birthday-banner hidden"></div>
+    <div class="meta-wallet">
+      <div class="wallet-coins">🪙 <b id="wallet-coins">0</b></div>
+      <button id="rank-badge" class="rank-badge" data-i18n-aria="hud.rankAria" aria-label="Rank"></button>
+    </div>
+    <div class="best-line">🏆 <span data-i18n="menu.best">Best Record</span> <b id="best-menu">0.0%</b></div>
+    <div class="skin-title" data-i18n="menu.chooseSkin">Pick your racer</div>
     <div id="skin-list"></div>
-    <button id="btn-start" class="big-btn">开始游戏</button>
+    <button id="btn-start" class="big-btn" data-i18n="menu.start">Play</button>
     <div class="menu-row">
-      <button id="btn-mute" class="small-btn">🔊 音效开</button>
-      <button id="btn-bgm" class="small-btn">🎶 音乐开</button>
+      <button id="btn-collection" class="small-btn meta-dot-wrap"><span data-i18n="menu.collection">🎁 Collection</span><span id="coll-dot" class="hidden"></span></button>
+      <button id="btn-daily" class="small-btn daily-btn hidden" data-i18n="menu.daily">🎁 Daily Gift</button>
+    </div>
+    <div class="menu-row">
+      <button id="btn-mute" class="small-btn">🔊 Sound On</button>
+      <button id="btn-bgm" class="small-btn">🎶 Music On</button>
     </div>
   </div>
 
-  <!-- 暂停 -->
+  <!-- 暂停 / Pause -->
   <div id="pause-screen" class="overlay hidden">
     <div class="panel">
-      <h2>暂停</h2>
-      <button id="btn-resume" class="big-btn">继续</button>
-      <button id="pause-mute" class="small-btn">🔊 音效开</button>
-      <button id="btn-menu" class="small-btn">回主菜单</button>
+      <h2 data-i18n="pause.title">Paused</h2>
+      <button id="btn-resume" class="big-btn" data-i18n="pause.resume">Resume</button>
+      <button id="pause-mute" class="small-btn">🔊 Sound On</button>
+      <button id="btn-menu" class="small-btn" data-i18n="pause.menu">Main Menu</button>
     </div>
   </div>
 
-  <!-- 复活 -->
+  <!-- 复活 / Revive -->
   <div id="revive-panel" class="overlay hidden">
     <div class="panel">
-      <h2>被切断了！</h2>
-      <p class="revive-tip">免费复活一次，保留你的地盘</p>
+      <h2 data-i18n="revive.title">You got cut off!</h2>
+      <p class="revive-tip" data-i18n="revive.tip">Revive once for free, keep your land</p>
       <button id="btn-revive" class="big-btn revive-btn">
-        复活 <span id="revive-count">5</span>
+        <span data-i18n="revive.revive">Revive</span> <span id="revive-count">5</span>
       </button>
-      <button id="btn-giveup" class="small-btn">放弃</button>
+      <button id="btn-giveup" class="small-btn" data-i18n="revive.giveup">Give Up</button>
     </div>
   </div>
 
-  <!-- 结算 -->
-  <div id="death-screen" class="overlay hidden">
-    <div class="panel">
-      <div id="death-record" class="record-badge hidden">NEW RECORD!</div>
-      <h2>本局结算</h2>
-      <div class="stat-row"><span>占领</span><b id="death-pct">0.0%</b></div>
-      <div class="stat-row"><span>击杀</span><b id="death-kills">0</b></div>
-      <div class="stat-row"><span>存活</span><b id="death-time">0:00</b></div>
-      <div class="stat-row"><span>最高</span><b id="death-best">0.0%</b></div>
-      <p id="death-enc" class="enc">再来一局一定行！</p>
-      <button id="btn-replay" class="big-btn">再来一局</button>
-    </div>
-  </div>
-
-  <!-- 胜利 -->
-  <div id="victory-screen" class="overlay hidden">
-    <div class="panel">
-      <h2 class="win-title">🎉 你统治了整个世界！</h2>
-      <p class="enc">100% 全部拿下，太强啦！</p>
-      <button id="btn-continue-win" class="big-btn">继续游玩</button>
-      <button id="btn-replay2" class="small-btn">再来一局</button>
-    </div>
-  </div>
+  <!-- 赛后结算/胜利由养成层覆盖层（MetaUI.showResults）动态渲染，见 js/meta/meta-ui.js -->
 
   <script type="module" src="./js/main.js"></script>
 </body>

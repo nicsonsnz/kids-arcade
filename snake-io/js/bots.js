@@ -1,21 +1,36 @@
 // bots.js — AI 蛇：性格向量 + FSM（AVOID > FLEE > HUNT > COIL > SEEK_FOOD > WANDER）
-import { TUNING, TAU, clamp, angDiff, rand, randInt, cellKey } from './game.js';
+import { TUNING, TAU, clamp, angDiff, rand, randInt, cellKey, SKINS } from './game.js';
+import { I18N } from './i18n.js';
 
-// 原创可爱名字池（≥24）
+// 原创可爱名字池（英文兜底，≥24）。实际展示池按当前语言取自 i18n（en/zh）。
 export const BOT_NAMES = [
-  '面条侠', '彩虹糖', '流星锤', '软糖将军', '奶盖波波', '闪电泡芙', '果冻弹', '蜜桃气泡',
-  '星尘喵', '布丁怪', '棉花星', '西瓜霜', '跳跳糖', '芒果冰', '小圆饼', '薄荷君',
-  '爆爆珠', '芝士条', '草莓熊', '柠檬派', '可可球', '糖霜龙', '波点鱼', '云朵卷',
-  '巧克脆', '蓝莓酱', '焦糖喵', '橘子汽',
+  'Noodle', 'Rainbow', 'Comet', 'Gummy', 'Marshmallow', 'Sprinkles', 'Jellybean', 'Bubbles',
+  'Stardust', 'Pudding', 'Cotton', 'Melon', 'PopRock', 'Mango', 'Cookie', 'Minty',
+  'Poppy', 'Cheddar', 'BerryBear', 'LemonPie', 'Cocoa', 'Frosting', 'DotFish', 'Cloudy',
+  'Choco', 'Blueberry', 'Caramel', 'Tangelo',
 ];
 
 let nameCursor = (Math.random() * BOT_NAMES.length) | 0;
 let skinCursor = 0;
 
 function pickName() {
-  const n = BOT_NAMES[nameCursor % BOT_NAMES.length];
+  // 按当前语言取名字池；名字在出生时固定，本局内保持（切换语言不会改已生成的 bot 名）。
+  const pool = I18N.botNames();
+  const list = (pool && pool.length) ? pool : BOT_NAMES;
+  const n = list[nameCursor % list.length];
   nameCursor++;
   return n;
+}
+
+// bot 可用皮肤索引（排除生日限定）。懒初始化，避免与 game.js 的循环 import 造成 TDZ。
+let _botSkins = null;
+function botSkins() {
+  if (!_botSkins) {
+    _botSkins = [];
+    for (let i = 0; i < SKINS.length; i++) if (!SKINS[i].birthdayOnly) _botSkins.push(i);
+    if (_botSkins.length === 0) _botSkins = [0];
+  }
+  return _botSkins;
 }
 
 export function spawnBotConfig() {
@@ -23,7 +38,8 @@ export function spawnBotConfig() {
   let mass;
   if (Math.random() < 0.1) mass = rand(300, 700);
   else mass = rand(8, 120);
-  const skin = skinCursor % 6;
+  const list = botSkins();
+  const skin = list[skinCursor % list.length];
   skinCursor++;
   const ai = {
     aggression: Math.random(),

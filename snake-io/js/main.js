@@ -1,10 +1,13 @@
 // main.js — 装配、主循环（固定步长+插值）、UI 屏幕、PWA、唤醒锁、可见性
-import { Game, TUNING, SKINS, skinUnlocked } from './game.js';
+import { Game, TUNING, SKINS } from './game.js';
 import { Renderer } from './render.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
 import { Juice } from './juice.js';
 import { Storage } from './storage.js';
+import { Meta } from './meta/meta.js';
+import { MetaUI } from './meta/meta-ui.js';
+import { I18N } from './i18n.js';
 
 const DT = 1 / 60;
 const MAX_STEPS = 4;
@@ -23,16 +26,12 @@ let acc = 0, mmTimer = 0, lbTimer = 0;
 
 const el = {};
 
-const ENCOURAGE_NEAR = ['差一点点！', '就快破纪录啦！', '手感火热！'];
-const ENCOURAGE_GOOD = ['太厉害了！', '这条蛇好长！', '横扫全场！'];
-const ENCOURAGE_MEH = ['再接再厉！', '下一局更长！', '别灰心，继续冲！'];
-
 function cacheEls() {
   ['hud', 'length-num', 'best-small', 'leaderboard', 'pause-btn', 'toasts', 'minimap',
     'boost-btn', 'joystick-base', 'joystick-knob', 'start-screen', 'start-best', 'skins-row',
     'start-btn', 'mute-btn', 'death-screen', 'death-encourage', 'd-length', 'd-kills', 'd-rank',
     'd-best', 'd-newbest', 'restart-btn', 'death-menu-btn', 'pause-screen', 'resume-btn',
-    'pause-mute-btn', 'pause-menu-btn'].forEach((id) => { el[id] = $(id); });
+    'pause-mute-btn', 'pause-menu-btn', 'lang-btn'].forEach((id) => { el[id] = $(id); });
 }
 
 function resize() {
@@ -47,24 +46,24 @@ function hide(node) { node.classList.add('hidden'); }
 
 function buildSkins() {
   const row = el['skins-row'];
-  const best = Storage.getBest();
   row.innerHTML = '';
+  const selId = Meta.selectedSkinId();
+  // 菜单横排快选：只展示「已拥有」的皮肤（未拥有去收藏册解锁）
   for (let i = 0; i < SKINS.length; i++) {
     const sk = SKINS[i];
-    const unlocked = skinUnlocked(i, best);
+    if (!Meta.isOwned(sk.id)) continue;
     const item = document.createElement('div');
-    item.className = 'skin-item' + (i === currentSkin ? ' selected' : '') + (unlocked ? '' : ' locked');
+    item.className = 'skin-item' + (sk.id === selId ? ' selected' : '');
     item.style.background = skinPreview(sk);
-    if (unlocked) {
-      item.innerHTML = '<span>' + sk.name + '</span>';
-    } else {
-      item.innerHTML = '<span class="lock">🔒</span><span class="lock-cond">' + sk.unlock + '</span>';
-    }
+    let inner = '<span>' + escapeHtml(I18N.t('skin.' + sk.id)) + '</span>';
+    if (Meta.isNew(sk.id)) inner += '<span class="lock-cond">' + escapeHtml(I18N.t('menu.new')) + '</span>';
+    item.innerHTML = inner;
     item.addEventListener('click', () => {
-      if (!skinUnlocked(i, Storage.getBest())) return;
-      currentSkin = i;
-      Storage.setSkin(i);
+      Meta.selectSkin(sk.id);
+      Meta.clearNew(sk.id);
+      currentSkin = sk.index;
       Audio.button();
+      MetaUI.renderMenu();
       buildSkins();
     });
     row.appendChild(item);
@@ -72,14 +71,14 @@ function buildSkins() {
 }
 
 function skinPreview(sk) {
-  switch (sk.type) {
-    case 'rings': return 'repeating-linear-gradient(45deg,#ff9d2e,#ff9d2e 10px,#ffd36b 10px,#ffd36b 20px)';
-    case 'ice': return 'repeating-linear-gradient(45deg,#3f8fe6,#3f8fe6 10px,#cfeaff 10px,#cfeaff 20px)';
-    case 'gradient': return 'linear-gradient(135deg,#ff5ecb,#8a4bff)';
-    case 'stripes': return 'repeating-linear-gradient(90deg,#7fbf1f,#7fbf1f 9px,#d7f56b 9px,#d7f56b 18px)';
-    case 'rainbow': return 'linear-gradient(90deg,#ff5e5e,#ffd166,#5be0b3,#5b8cff,#c78bff)';
-    case 'gold': return 'linear-gradient(135deg,#e6a91f,#ffe9a0,#b9791a)';
-    default: return sk.accent;
+  const b = sk.base, a = sk.accent;
+  switch (sk.style) {
+    case 'stripe': return 'repeating-linear-gradient(90deg,' + b + ' 0 9px,' + a + ' 9px 18px)';
+    case 'ring': return 'repeating-linear-gradient(45deg,' + b + ' 0 10px,' + a + ' 10px 20px)';
+    case 'gradient': return 'linear-gradient(135deg,' + b + ',' + a + ')';
+    case 'rainbow': return 'linear-gradient(90deg,#ff5e5e,#ffd166,#5be0b3,#5b8cff,#c78bff,#ff5ecb)';
+    case 'dragon': return 'linear-gradient(135deg,' + b + ',' + a + ',' + b + ')';
+    default: return b;
   }
 }
 
@@ -89,18 +88,22 @@ function showStart() {
   Audio.stopBgm();
   releaseWake();
   el['start-best'].textContent = Storage.getBest();
-  const best = Storage.getBest();
-  if (!skinUnlocked(currentSkin, best)) currentSkin = 0;
+  currentSkin = Meta.selectedSkinIndex();
   buildSkins();
   hide(el.hud);
   hide(el['death-screen']);
   hide(el['pause-screen']);
   show(el['start-screen']);
+  MetaUI.renderMenu();
+  // 进主菜单：生日优先，其次每日礼物（都为纯正向惊喜，缺席零惩罚）
+  const bday = Meta.checkBirthday();
+  if (bday.triggered) MetaUI.birthdayCelebration(bday);
+  else MetaUI.maybeDailyGift();
 }
 
 function startGame() {
   Audio.unlock();
-  currentSkin = clampSkin(currentSkin);
+  currentSkin = Meta.selectedSkinIndex();
   game.start(currentSkin);
   Renderer.resetCam(game);
   Input.reset();
@@ -121,26 +124,20 @@ function startGame() {
   if (!Audio.isMuted()) Audio.startBgm();
 }
 
-function clampSkin(i) {
-  return skinUnlocked(i, Storage.getBest()) ? i : 0;
-}
-
 function onDeath() {
   Audio.boostOff(); boostSnd = false;
   const st = game.stats;
-  el['d-length'].textContent = st.length;
-  el['d-kills'].textContent = st.kills;
-  el['d-rank'].textContent = '#' + st.bestRank;
-  el['d-best'].textContent = st.best;
-  let msg;
-  if (st.newBest) msg = '太厉害了！';
-  else if (st.length >= st.best * 0.7) msg = ENCOURAGE_NEAR[(Math.random() * ENCOURAGE_NEAR.length) | 0];
-  else if (st.length >= 800) msg = ENCOURAGE_GOOD[(Math.random() * ENCOURAGE_GOOD.length) | 0];
-  else msg = ENCOURAGE_MEH[(Math.random() * ENCOURAGE_MEH.length) | 0];
-  el['death-encourage'].textContent = msg;
-  if (st.newBest) { show(el['d-newbest']); Juice.confetti(Renderer.w / 2, Renderer.h * 0.3, Renderer.w * 0.8, 60); Audio.milestone(); }
-  else hide(el['d-newbest']);
-  show(el['death-screen']);
+  // 结算入账（金币/段位/宝箱只增）并跑赛后结算流程覆盖层
+  const result = Meta.reportMatch({
+    length: st.length,
+    kills: st.kills,
+    rank: st.bestRank,
+    totalPlayers: st.totalPlayers,
+    top3: st.top3,
+    bonusCoins: st.bonusCoins,
+    newBest: st.newBest,
+  });
+  MetaUI.showResults(result);
 }
 
 function togglePause(p) {
@@ -161,7 +158,7 @@ function togglePause(p) {
 function setMuteIcon() {
   const icon = Audio.isMuted() ? '🔇' : '🔊';
   el['mute-btn'].textContent = icon;
-  el['pause-mute-btn'].textContent = icon + ' 音效';
+  el['pause-mute-btn'].textContent = icon + ' ' + I18N.t('hud.sound');
 }
 
 function toggleMute() {
@@ -170,6 +167,27 @@ function toggleMute() {
   if (m) Audio.stopBgm();
   else if (game.state === 'play' && !paused) Audio.startBgm();
   Audio.button();
+}
+
+// === 语言 / Language ===
+function setLangBtn() {
+  // 显示目标语言：英文时显示「中文」，中文时显示「EN」
+  if (el['lang-btn']) el['lang-btn'].textContent = I18N.t('lang.toggle');
+}
+
+function toggleLang() {
+  Audio.button();
+  I18N.toggle();
+}
+
+// 语言切换后：重刷所有静态文案 + 动态构建 UI（当前可见的都实时更新）
+function relocalize() {
+  I18N.hydrate(document);
+  setLangBtn();
+  setMuteIcon();
+  buildSkins();
+  if (el['best-small']) updateLeaderboard();
+  MetaUI.relocalize();
 }
 
 // === HUD 更新 ===
@@ -185,7 +203,7 @@ function updateLength() {
 }
 
 function updateLeaderboard() {
-  el['best-small'].textContent = '最高 ' + Storage.getBest();
+  el['best-small'].textContent = I18N.t('hud.best') + ' ' + Storage.getBest();
   const lb = game.leaderboard();
   let html = '';
   for (let i = 0; i < lb.length; i++) {
@@ -254,6 +272,9 @@ function frame(now) {
     if (mmTimer <= 0) { mmTimer = 1 / 3; Renderer.drawMinimap(game); }
     lbTimer -= ft;
     if (lbTimer <= 0) { lbTimer = 0.5; updateLeaderboard(); updateToasts(); }
+    // 连杀弹窗（双杀/三杀/超神）
+    let sp;
+    while ((sp = game.consumeStreak())) MetaUI.streakPopup(sp.text, sp.level);
   }
 
   if (game.state === 'dead' && !deathShown) { deathShown = true; onDeath(); }
@@ -291,6 +312,7 @@ function onVisibility() {
 // === 初始化 ===
 function init() {
   cacheEls();
+  Meta.init(); // 存档 + 迁移旧键（在装配前，供皮肤/难度/名字读取）
   canvas = $('game');
   Renderer.init(canvas);
   Renderer.initMinimap(el['minimap']);
@@ -298,9 +320,19 @@ function init() {
   Audio.init();
   resize();
 
+  MetaUI.init({
+    audio: Audio,
+    onPlayAgain: () => { Audio.button(); startGame(); },
+    onMenu: () => { Audio.button(); showStart(); },
+    onSkinSelect: () => { currentSkin = Meta.selectedSkinIndex(); MetaUI.renderMenu(); buildSkins(); },
+    onGalleryClose: () => { buildSkins(); },
+  });
+
   game = new Game();
   window.__game = game; // 调试句柄（自动化测试用）
-  currentSkin = clampSkin(Storage.getSkin());
+  window.__meta = Meta; // 调试句柄（自动化测试用）
+  window.__metaui = MetaUI; // 调试句柄（自动化测试用）
+  currentSkin = Meta.selectedSkinIndex();
 
   Input.setup({
     canvas,
@@ -319,6 +351,12 @@ function init() {
   el['pause-menu-btn'].addEventListener('click', () => { Audio.button(); game.state = 'menu'; paused = false; showStart(); });
   el['mute-btn'].addEventListener('click', toggleMute);
   el['pause-mute-btn'].addEventListener('click', toggleMute);
+  el['lang-btn'].addEventListener('click', toggleLang);
+
+  // i18n：初次注水静态文案 + 语言按钮，订阅切换后实时重渲染
+  I18N.hydrate(document);
+  setLangBtn();
+  I18N.onChange(relocalize);
 
   setMuteIcon();
   showStart();
@@ -326,7 +364,11 @@ function init() {
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', resize);
   document.addEventListener('visibilitychange', onVisibility);
-  document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  // 阻止整页橡皮筋滚动，但放行可滚动的收藏册网格（否则折叠线以下的皮肤无法查看/选择/购买）
+  document.addEventListener('touchmove', (e) => {
+    if (e.target.closest && e.target.closest('.mg-grid')) return;
+    e.preventDefault();
+  }, { passive: false });
 
   // PWA
   if ('serviceWorker' in navigator) {

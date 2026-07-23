@@ -212,6 +212,58 @@ export const Audio = {
     this._tone(880, t, 0.06, 'square', 0.16);
   },
 
+  // ---- 养成系统音效（覆盖层，一次性）----
+  coinTick() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(1180 + Math.random() * 120, t, 0.05, 'square', 0.09);
+  },
+
+  chestTick(i = 0) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this._tone(520 + i * 90, t, 0.05, 'square', 0.12 + i * 0.02);
+  },
+
+  streakHit(level = 2) {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const base = 520 + Math.min(level, 4) * 130;
+    this._tone(base, t, 0.1, 'square', 0.22);
+    this._tone(base * 1.5, t + 0.06, 0.12, 'triangle', 0.2);
+    if (level >= 4) this._tone(base * 2, t + 0.12, 0.14, 'triangle', 0.18);
+  },
+
+  // 欢呼/晋级号角（开新皮肤、段位晋升）
+  fanfare() {
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const chord = [523.25, 659.25, 783.99, 1046.5];
+    for (let i = 0; i < chord.length; i++) {
+      this._tone(chord[i], t + i * 0.07, 0.5, 'triangle', 0.24);
+    }
+    this._tone(1318.5, t + 0.28, 0.5, 'triangle', 0.2);
+  },
+
+  // 生日快乐旋律小段（WebAudio 合成，SPEC §7）
+  birthdaySong() {
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    // 「生日快乐」音符（简化，C 大调）：G G A G C B | G G A G D C
+    const N = { G3: 196, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392, A4: 440, B4: 493.88, C5: 523.25 };
+    const seq = [
+      ['G3', 0.4], ['G3', 0.2], ['A4', 0.6], ['G4', 0.6], ['C5', 0.6], ['B4', 1.0],
+      ['G3', 0.4], ['G3', 0.2], ['A4', 0.6], ['G4', 0.6], ['D4', 0.6], ['C5', 1.0],
+    ];
+    let t = t0 + 0.05;
+    for (const [note, dur] of seq) {
+      const f = N[note] || 392;
+      this._tone(f, t, dur * 0.9, 'triangle', 0.22);
+      this._tone(f * 2, t, dur * 0.5, 'sine', 0.08);
+      t += dur * 0.62;
+    }
+  },
+
   // ---- BGM lookahead 调度 ----
   startBgm() {
     if (!ctx || bgmOff || muted || bgmTimer) return;

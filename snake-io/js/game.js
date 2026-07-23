@@ -2,7 +2,11 @@
 import { Juice } from './juice.js';
 import { Audio } from './audio.js';
 import { Storage } from './storage.js';
+import { Meta } from './meta/meta.js';
+import { SKIN_CATALOG } from './meta/meta-config.js';
+import { STREAK_BONUS, STREAK_NAME, STREAK_WINDOW } from './meta/meta-config.js';
 import { botThink, spawnBotConfig, BOT_NAMES } from './bots.js';
+import { I18N } from './i18n.js';
 
 export const TAU = Math.PI * 2;
 
@@ -31,19 +35,9 @@ export const TUNING = {
   boostBeanValue: 2,
 };
 
-// 皮肤定义（解锁按 best length）
-export const SKINS = [
-  { id: 0, name: '蜜橙', unlock: 0, type: 'rings', accent: '#ffb347' },
-  { id: 1, name: '冰霜', unlock: 1000, type: 'ice', accent: '#5aa9ff' },
-  { id: 2, name: '莓紫', unlock: 2500, type: 'gradient', accent: '#d56bff' },
-  { id: 3, name: '青柠', unlock: 5000, type: 'stripes', accent: '#a6e22e' },
-  { id: 4, name: '虹彩', unlock: 8000, type: 'rainbow', accent: '#ff5ecb' },
-  { id: 5, name: '金龙', unlock: 15000, type: 'gold', accent: '#ffd34d' },
-];
-
-export function skinUnlocked(id, best) {
-  return best >= SKINS[id].unlock;
-}
+// 皮肤目录改由元系统数据驱动（{id,name,rarity,base,accent,style}）。渲染只读 base/accent/style。
+// SKINS 为数组，索引即渲染索引（s.skin 存索引），与 Meta 目录同一份。
+export const SKINS = SKIN_CATALOG;
 
 const MILESTONES = [500, 1000, 2500, 5000, 8000, 12000, 15000, 20000, 30000, 50000];
 
@@ -187,6 +181,13 @@ export class Game {
     this.time = 0;
 
     this.killToasts = []; // {text, life}
+    this.botCount = TUNING.botCount;        // 本局 bot 目标数（隐形难度可下调）
+    this.diff = { botDelta: 0, aggressionMul: 1 };
+    // 连杀（玩家）：短窗口内连续击杀升级弹窗 + 额外金币
+    this.killStreak = 0;
+    this.killStreakTimer = 0;
+    this.streakBonus = 0;                   // 本局累计连杀奖励金币
+    this.streakPops = [];                   // {text, level} 供 main 消费成 DOM 弹窗
     this.rank = 1;
     this.kingId = -1;     // 当前 #1（渲染金冠用，逻辑步内 O(n) 更新，避免渲染每帧排序分配）
     this.bestRank = 999;
@@ -221,14 +222,22 @@ export class Game {
     this.bestRank = 999;
     this.milestoneIdx = 0;
     this.stats = null;
+    this.killStreak = 0;
+    this.killStreakTimer = 0;
+    this.streakBonus = 0;
+    this.streakPops.length = 0;
     Juice.reset();
+
+    // 隐形照顾难度（连败 → 悄悄降 bot 数量/激进度；绝不提示）
+    this.diff = Meta.difficulty();
+    this.botCount = clamp(TUNING.botCount + this.diff.botDelta, 6, TUNING.botCount);
 
     // 玩家
     const p = makeSnake();
     p.id = this._snakeId++;
     p.isPlayer = true;
     p.alive = true;
-    p.name = '你';
+    p.name = Meta.playerName();   // 'Leon'（生日当天带 🎂）
     p.skin = skinId;
     p.mass = TUNING.startMass;
     const a0 = Math.random() * TAU;
@@ -245,7 +254,7 @@ export class Game {
     this.player = p;
 
     // bots
-    for (let i = 0; i < TUNING.botCount; i++) this._spawnBot();
+    for (let i = 0; i < this.botCount; i++) this._spawnBot();
 
     // 食物填充（bail-out：池若耗尽则停止，避免 _acquireFood 返回 null 时空转）
     while (this._countBaseline() < TUNING.foodCount) { if (!this._spawnBaselineFood()) break; }
@@ -280,6 +289,8 @@ export class Game {
     s.skin = cfg.skin;
     s.mass = cfg.mass;
     s.ai = cfg.ai;
+    // 隐形难度：连败时悄悄降低 bot 激进度
+    s.ai.aggression *= this.diff.aggressionMul;
     // 出生点：远离玩家一点
     let bx = 0, by = 0, tries = 0;
     do {
@@ -433,6 +444,12 @@ export class Game {
       if (player.comboTimer <= 0) { player.combo = 0; player.comboTimer = 0; }
     }
 
+    // 连杀窗口计时
+    if (this.killStreakTimer > 0) {
+      this.killStreakTimer -= dt;
+      if (this.killStreakTimer <= 0) { this.killStreak = 0; this.killStreakTimer = 0; }
+    }
+
     // 排名
     this._updateRank();
 
@@ -452,7 +469,7 @@ export class Game {
       this.respawnTimers[i] -= dt;
       if (this.respawnTimers[i] <= 0) {
         this.respawnTimers.splice(i, 1);
-        if (this._aliveBots() < TUNING.botCount) this._spawnBot();
+        if (this._aliveBots() < this.botCount) this._spawnBot();
       }
     }
 
@@ -650,9 +667,10 @@ export class Game {
       killer.mass += Math.min(30, victim.mass * 0.12);
       recompute(killer);
       if (killer.isPlayer) {
-        this.killToasts.unshift({ text: '你吃掉了 ' + victim.name + '！', life: 2.6 });
+        this.killToasts.unshift({ text: I18N.t('feed.kill', { name: victim.name }), life: 2.6 });
         if (this.killToasts.length > 4) this.killToasts.length = 4;
-        Juice.text(p.x, p.y - p.r - 30, '+击杀', '#ffd166', 22);
+        Juice.text(p.x, p.y - p.r - 30, I18N.t('feed.plusKill'), '#ffd166', 22);
+        this._registerStreak();
       }
     }
 
@@ -662,6 +680,28 @@ export class Game {
       // bot 2–4s 后重生
       this.respawnTimers.push(rand(2, 4));
     }
+  }
+
+  // 连杀登记（玩家击杀时调用）
+  _registerStreak() {
+    this.killStreak++;
+    this.killStreakTimer = STREAK_WINDOW;
+    const lvl = this.killStreak;
+    if (lvl >= 2) {
+      const key = lvl >= 4 ? 4 : lvl; // 4+ = 超神
+      const bonus = STREAK_BONUS[key] || 0;
+      this.streakBonus += bonus;
+      const p = this.player;
+      const streakText = I18N.t('streak.' + key);
+      Juice.text(p.x, p.y - p.r - 60, streakText, '#ff5ecb', 34);
+      Audio.milestone();
+      this.streakPops.push({ text: streakText, level: key });
+      if (this.streakPops.length > 3) this.streakPops.shift();
+    }
+  }
+
+  consumeStreak() {
+    return this.streakPops.length ? this.streakPops.shift() : null;
   }
 
   _playerDied() {
@@ -675,12 +715,16 @@ export class Game {
     Storage.addKills(p.kills);
     Storage.addGame();
     Juice.shake(20);
+    const bestRank = this.bestRank === 999 ? this.rank : this.bestRank;
     this.stats = {
       length: len,
       kills: p.kills,
-      bestRank: this.bestRank === 999 ? this.rank : this.bestRank,
+      bestRank,
       best: Math.max(best, len),
       newBest,
+      top3: bestRank <= 3,                 // snake 名次定义：最高名次 ≤3 视为 top3
+      totalPlayers: this.botCount + 1,
+      bonusCoins: this.streakBonus,        // 连杀奖励金币（计入本局金币）
     };
     this.state = 'dead';
   }
@@ -704,7 +748,7 @@ export class Game {
       this.milestoneIdx++;
       Audio.milestone();
       const best = Storage.getBest();
-      const msg = len > best ? '新纪录！' : '突破 ' + m + '！';
+      const msg = len > best ? I18N.t('milestone.newRecord') : I18N.t('milestone.passed', { n: m });
       Juice.text(this.player.x, this.player.y - this.player.r - 46, msg, '#ffe08a', 30);
       this._pendingConfetti = true;
     }

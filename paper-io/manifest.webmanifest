@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "圈地大冒险",
-  "short_name": "圈地大冒险",
+  "name": "Popsicle Land",
+  "short_name": "Popsicle Land",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

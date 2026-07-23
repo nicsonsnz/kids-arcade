@@ -1,33 +1,34 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="蛇蛇星球">
+  <meta name="apple-mobile-web-app-title" content="Noodle Stars">
   <meta name="theme-color" content="#5b3df5">
   <link rel="apple-touch-icon" href="./icons/icon-180.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <title>蛇蛇星球</title>
+  <title>Noodle Stars</title>
   <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/meta.css">
 </head>
 <body>
   <div id="app">
     <canvas id="game"></canvas>
 
-    <!-- 游戏内 HUD -->
+    <!-- 游戏内 HUD / In-game HUD -->
     <div id="hud" class="hidden">
       <div id="length-box">
         <div id="length-num">10</div>
-        <div id="length-label">长度</div>
-        <div id="best-small">最高 0</div>
+        <div id="length-label" data-i18n="hud.length">Length</div>
+        <div id="best-small">Best 0</div>
       </div>
 
       <div id="leaderboard"></div>
 
-      <button id="pause-btn" aria-label="暂停">⏸</button>
+      <button id="pause-btn" data-i18n-aria="hud.pause" aria-label="Pause">⏸</button>
 
       <div id="toasts"></div>
 
@@ -38,44 +39,45 @@
       <button id="boost-btn">⚡</button>
     </div>
 
-    <!-- 动态摇杆 -->
+    <!-- 动态摇杆 / Dynamic joystick -->
     <div id="joystick-base"></div>
     <div id="joystick-knob"></div>
 
-    <!-- 开始界面 -->
+    <!-- 开始界面 / Start screen -->
     <div id="start-screen" class="overlay">
+      <button id="lang-btn" class="lang-btn" aria-label="Language">中文</button>
       <div class="logo-wrap">
-        <div class="logo">蛇蛇星球</div>
-        <div class="logo-sub">Noodle Stars</div>
+        <div class="logo" data-i18n="logo.primary">Noodle Stars</div>
+        <div class="logo-sub" data-i18n="logo.sub">蛇蛇星球</div>
       </div>
-      <div class="best-line">最高纪录 <span id="start-best">0</span></div>
-      <div class="skins-label">选择皮肤</div>
+      <div class="best-line"><span data-i18n="menu.bestScore">Best Score</span> <span id="start-best">0</span></div>
+      <div class="skins-label" data-i18n="menu.chooseSkin">Choose a Skin</div>
       <div id="skins-row"></div>
-      <button id="start-btn" class="big-btn">开 始</button>
+      <button id="start-btn" class="big-btn" data-i18n="menu.play">PLAY</button>
       <button id="mute-btn" class="small-round">🔊</button>
     </div>
 
-    <!-- 死亡界面 -->
+    <!-- 死亡界面 / Death screen (legacy overlay) -->
     <div id="death-screen" class="overlay hidden">
-      <div class="death-title">游戏结束</div>
-      <div class="death-encourage" id="death-encourage">差一点点！</div>
+      <div class="death-title" data-i18n="death.title">Game Over</div>
+      <div class="death-encourage" id="death-encourage" data-i18n="death.encourage">So close!</div>
       <div class="death-stats">
-        <div class="stat"><span class="stat-val" id="d-length">0</span><span class="stat-key">本局长度</span></div>
-        <div class="stat"><span class="stat-val" id="d-kills">0</span><span class="stat-key">击杀</span></div>
-        <div class="stat"><span class="stat-val" id="d-rank">-</span><span class="stat-key">最高名次</span></div>
-        <div class="stat"><span class="stat-val" id="d-best">0</span><span class="stat-key">最高纪录</span></div>
+        <div class="stat"><span class="stat-val" id="d-length">0</span><span class="stat-key" data-i18n="death.statLength">Length</span></div>
+        <div class="stat"><span class="stat-val" id="d-kills">0</span><span class="stat-key" data-i18n="death.statKills">Kills</span></div>
+        <div class="stat"><span class="stat-val" id="d-rank">-</span><span class="stat-key" data-i18n="death.statRank">Best Rank</span></div>
+        <div class="stat"><span class="stat-val" id="d-best">0</span><span class="stat-key" data-i18n="death.statBest">Best</span></div>
       </div>
-      <div id="d-newbest" class="newbest hidden">🏆 新纪录！</div>
-      <button id="restart-btn" class="big-btn">再来一局</button>
-      <button id="death-menu-btn" class="small-btn">回主菜单</button>
+      <div id="d-newbest" class="newbest hidden" data-i18n="death.newBest">🏆 New Record!</div>
+      <button id="restart-btn" class="big-btn" data-i18n="death.again">Play Again</button>
+      <button id="death-menu-btn" class="small-btn" data-i18n="death.menu">Main Menu</button>
     </div>
 
-    <!-- 暂停界面 -->
+    <!-- 暂停界面 / Pause screen -->
     <div id="pause-screen" class="overlay hidden">
-      <div class="pause-title">暂停</div>
-      <button id="resume-btn" class="big-btn">继 续</button>
-      <button id="pause-mute-btn" class="small-btn">🔊 音效</button>
-      <button id="pause-menu-btn" class="small-btn">回主菜单</button>
+      <div class="pause-title" data-i18n="pause.title">Paused</div>
+      <button id="resume-btn" class="big-btn" data-i18n="pause.resume">Resume</button>
+      <button id="pause-mute-btn" class="small-btn">🔊 Sound</button>
+      <button id="pause-menu-btn" class="small-btn" data-i18n="pause.menu">Main Menu</button>
     </div>
   </div>
 

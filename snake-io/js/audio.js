@@ -170,6 +170,23 @@ export const Audio = {
     const t = now();
     tone(680, t, 0.07, 'sine', 0.2, 900);
   },
+  // 生日快乐旋律小段（WebAudio 合成，无音频文件）
+  birthday() {
+    if (!ctx) return;
+    const t = now();
+    // 「生日快乐歌」前两句：G G A G C B | G G A G D C
+    const seq = [
+      [392, 0.30], [392, 0.30], [440, 0.55], [392, 0.55], [523, 0.55], [494, 0.9],
+      [392, 0.30], [392, 0.30], [440, 0.55], [392, 0.55], [587, 0.55], [523, 0.9],
+    ];
+    let at = t + 0.05;
+    for (let i = 0; i < seq.length; i++) {
+      const f = seq[i][0], d = seq[i][1];
+      tone(f, at, d * 0.95, 'triangle', 0.18);
+      tone(f * 0.5, at, d * 0.95, 'sine', 0.08);
+      at += d;
+    }
+  },
 
   // === 加速气流循环 ===
   boostOn() {
