@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1633">
+<title>小小游戏厅</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif;
+    background: radial-gradient(1200px 800px at 50% -10%, #2d2452 0%, #1b1633 55%, #120e24 100%);
+    color: #fff; display: flex; flex-direction: column; align-items: center;
+    padding: calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 32px);
+    overflow-x: hidden;
+  }
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .stars i { position: absolute; width: 4px; height: 4px; border-radius: 50%;
+    background: #cfc6ff; opacity: .7; animation: tw 2.6s ease-in-out infinite; }
+  @keyframes tw { 0%,100% { opacity:.15; transform:scale(.7);} 50% { opacity:.85; transform:scale(1);} }
+  h1 { font-size: 34px; font-weight: 900; letter-spacing: 2px; z-index: 1;
+       text-shadow: 0 4px 0 rgba(0,0,0,.35); animation: bob 3s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-6px);} }
+  .sub { margin-top: 10px; font-size: 14px; color: #b9b0e8; z-index: 1; }
+  .badges { display: flex; gap: 8px; margin-top: 14px; z-index: 1; }
+  .badge { font-size: 12px; font-weight: 700; background: rgba(255,255,255,.1);
+           border: 1px solid rgba(255,255,255,.18); padding: 5px 12px; border-radius: 999px; }
+  .cards { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center;
+           margin-top: 34px; width: 100%; max-width: 760px; z-index: 1; }
+  a.card {
+    flex: 1 1 300px; max-width: 350px; text-decoration: none; color: inherit;
+    border-radius: 28px; padding: 22px; position: relative; overflow: hidden;
+    transform: translateZ(0); transition: transform .18s ease, box-shadow .18s ease;
+    box-shadow: 0 14px 34px rgba(0,0,0,.4);
+  }
+  a.card:active { transform: scale(.965); }
+  @media (hover:hover) { a.card:hover { transform: translateY(-5px); } }
+  .card.pop { background: linear-gradient(160deg, #ffb36b 0%, #ff7a28 100%); }
+  .card.noo { background: linear-gradient(160deg, #7a5cff 0%, #4a2fbb 100%); }
+  .card img { width: 92px; height: 92px; border-radius: 22px; display: block;
+              box-shadow: 0 8px 18px rgba(0,0,0,.3); }
+  .card h2 { margin-top: 16px; font-size: 26px; font-weight: 900; text-shadow: 0 3px 0 rgba(0,0,0,.22); }
+  .card p { margin-top: 6px; font-size: 14px; opacity: .92; line-height: 1.5; }
+  .card .go { margin-top: 16px; display: inline-block; background: rgba(255,255,255,.92);
+              border-radius: 999px; padding: 10px 22px; font-weight: 800; font-size: 16px; }
+  .card.pop .go { color: #e2611a; } .card.noo .go { color: #4a2fbb; }
+  .card .deco { position: absolute; right: -18px; top: -18px; font-size: 84px; opacity: .18;
+                transform: rotate(18deg); pointer-events: none; }
+  .tip { margin-top: 34px; font-size: 13px; color: #9d93cf; text-align: center;
+         line-height: 1.8; z-index: 1; max-width: 420px; }
+  .tip b { color: #d8d1ff; }
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<h1>🕹️ 小小游戏厅</h1>
+<div class="sub">爸爸出品 · 专属游戏机</div>
+<div class="badges">
+  <span class="badge">🚫 没有广告</span>
+  <span class="badge">📶 断网能玩</span>
+  <span class="badge">🆓 全部免费</span>
+</div>
+
+<div class="cards">
+  <a class="card pop" href="./paper-io/">
+    <span class="deco">🍦</span>
+    <img src="./paper-io/icons/icon-192.png" alt="圈地大冒险">
+    <h2>圈地大冒险</h2>
+    <p>开着冰棒小车圈地盘！绕一圈把土地变成你的颜色，切断对手的尾巴，占领整个世界！</p>
+    <span class="go">开始玩 ▶</span>
+  </a>
+  <a class="card noo" href="./snake-io/">
+    <span class="deco">🐍</span>
+    <img src="./snake-io/icons/icon-192.png" alt="蛇蛇星球">
+    <h2>蛇蛇星球</h2>
+    <p>吃光豆变成超级大蛇！用身体拦住别的蛇，把它们变成一地星星糖，登上第一名！</p>
+    <span class="go">开始玩 ▶</span>
+  </a>
+</div>
+
+<div class="tip">
+  💡 想变成手机 App：用 Safari 打开游戏，点 <b>分享按钮 ⬆️</b> →
+  <b>「添加到主屏幕」</b>，桌面就会出现游戏图标，全屏没广告！
+</div>
+
+<script>
+  const s = document.getElementById('stars');
+  for (let i = 0; i < 26; i++) {
+    const d = document.createElement('i');
+    d.style.left = Math.random() * 100 + '%';
+    d.style.top = Math.random() * 100 + '%';
+    d.style.animationDelay = (Math.random() * 2.6).toFixed(2) + 's';
+    d.style.transform = 'scale(' + (0.5 + Math.random()).toFixed(2) + ')';
+    s.appendChild(d);
+  }
+</script>
+</body>
+</html>
