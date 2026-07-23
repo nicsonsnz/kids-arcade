@@ -17,18 +17,15 @@ python3 -m http.server 8347 --directory "/Users/nick/Documents/Nick_Projects/Gam
 
 浏览器打开 http://localhost:8347 。桌面操作：WASD/方向键或按住鼠标拖动转向；蛇蛇加速=空格或按住左键。
 
-## 装到儿子的 iPhone 上（两种方式）
+## 🌐 正式地址（已部署 GitHub Pages）
 
-**方式 A：同一 Wi-Fi 快速体验（不用部署）**
-1. Mac 上运行上面的命令；查 Mac 的局域网 IP（系统设置 → Wi-Fi → 详细信息，例如 192.168.1.23）
-2. iPhone Safari 打开 `http://192.168.1.23:8347`
-3. 点分享 ⬆️ → 「添加到主屏幕」→ 桌面出现图标，全屏玩
-4. 限制：Mac 得开着服务器；HTTP 局域网下离线缓存（Service Worker）不生效
+**https://nicsonsnz.github.io/kids-arcade/**
 
-**方式 B：免费静态托管（推荐，一劳永逸）**
-把 `Game` 文件夹整个部署到任意免费静态托管（GitHub Pages / Cloudflare Pages / Netlify）。
-HTTPS 环境下 Service Worker 生效：添加到主屏幕后**断网也能玩**，图标、全屏、启动色全都到位。
-部署后打开对应网址 → 分享 → 添加到主屏幕即可。
+装到 iPhone：手机 Safari 打开上面网址 → 进想玩的游戏 → 点分享 ⬆️ →
+「添加到主屏幕」→ 桌面出现游戏图标，点开即全屏游戏，**断网也能玩**。
+（两个游戏分别添加，各有各的图标；也可以只把门户页加到主屏幕。）
+
+**更新流程**：改完代码 → bump 对应 `sw.js` 的 `CACHE` 版本号 → `git push`（仓库 `nicsonsnz/kids-arcade`，Pages 自动重建）。手机上开关一次 App 后拿到新版本。
 
 ## 技术要点
 - 纯 vanilla JS ES modules，Canvas 2D，60Hz 固定步长 + 渲染插值，DPR 上限 2
